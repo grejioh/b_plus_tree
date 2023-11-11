@@ -6,7 +6,7 @@
 
 
 // test sequential insert
-void test_sequential_insert() {
+void test_sequential_insert(void) {
     
     printf("Test sequential insert\n");
 
@@ -93,7 +93,7 @@ void test_random_unique_insert(int times) {
 }
 
 // test range query
-void test_range_query() {
+void test_range_query(void) {
     printf("Test range query\n");
     // test insert to build a B plus tree
     B_plus_tree *tree = malloc(sizeof(B_plus_tree));
@@ -156,7 +156,7 @@ void test_range_query() {
     }
     
 }
-int main() {
+int main(void) {
     test_sequential_insert();
     test_random_unique_insert(1000000);
     test_range_query();

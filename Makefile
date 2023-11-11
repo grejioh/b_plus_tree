@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g
+CFLAGS = -g -Wall -Wextra -Werror -std=c99 -pedantic -Wno-unused-parameter
 TARGET_DIR = target
 SRC_DIR = src
 INCLUDE_DIR = include

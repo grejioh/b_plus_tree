@@ -338,11 +338,11 @@ void B_plus_tree_free_tree(B_plus_tree *tree) {
 
 // print a B plus tree node
 void B_plus_tree_print_node(B_plus_tree_node *node) {
-    printf("node: %p\n", node);
+    printf("node: %p\n", (void*)node);
     printf("key_num: %d\n", node->key_num);
     printf("pointer_num: %d\n", node->pointer_num);
     printf("is_leaf: %d\n", node->is_leaf);
-    printf("parent: %p\n", node->parent);
+    printf("parent: %p\n", (void*)node->parent);
     printf("key: ");
     for(int i = 0; i < node->key_num; i++) {
         printf("%d ", node->key[i]);
