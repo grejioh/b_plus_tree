@@ -7,28 +7,68 @@
 void B_plus_tree_free_node(B_plus_tree_node *node);
 void B_plus_tree_free_tree(B_plus_tree *tree);
 void B_plus_tree_free_temp_node(B_plus_tree_node *node);
+void B_plus_tree_print_node(B_plus_tree_node *node);
 
+void B_plus_tree_insert_in_parent(B_plus_tree *tree, B_plus_tree_node *Node,int Key, B_plus_tree_node *Node_prime);
+void B_plus_tree_insert_in_internal_node(B_plus_tree_node *N, int K, B_plus_tree_node *P);
+void B_plus_tree_insert_in_leaf(B_plus_tree_node *L, int K, Record *P);
+B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v);
+B_plus_tree_node *B_plus_tree_node_create_node(int key_capacity, int pointer_capacity);
+void B_plus_tree_copy_node(B_plus_tree_node *src, B_plus_tree_node *dst, int key_start, int key_stop_index, int pointer_start, int pointer_stop_index);
+Record *B_plus_tree_find(B_plus_tree *tree, int v);
+
+/*
+find several records by key range [lb, ub]
+return number of records found
+
+result_set is a pointer to an array of Record pointers
+result_set is allocated by this function, you should free it after use
+TODO: use a better way to return result_set, such as a struct support dynamic array
+*/
+int B_plus_tree_find_range(B_plus_tree *tree, int lb, int ub, Record*** result_set) {
+    if(lb > ub) {
+        return 0;
+    }
+
+    // 初始化结果集的大小
+    int result_capacity = 10;
+    *result_set = malloc(sizeof(Record*) * result_capacity);
+    int result_count = 0;
+
+    B_plus_tree_node *C = B_plus_tree_find_leaf(tree, lb);
+
+    int i = 0;
+    for (i = 0; i < C->key_num && C->key[i] < lb; i++) {
+        // do nothing
+    }
+
+    while(C != NULL) {
+        for(; i < C->key_num && C->key[i] <= ub; i++) {
+
+            if (result_count == result_capacity) {
+                // 如果结果集已满，那么将其大小加倍
+                result_capacity *= 2;
+                *result_set = realloc(*result_set, sizeof(Record*) * result_capacity);
+            }
+
+            (*result_set)[result_count++] = C->pointer[i];
+        }
+        C = C->pointer[NUMBER_OF_CHILD-1];
+        i = 0;
+    }
+
+    // 在查找结束后，你可以将结果集的大小调整为实际的记录数，以节省内存
+    *result_set = realloc(*result_set, sizeof(Record*) * result_count);
+    for(int i = 0; i < result_count; i++) {
+        printf("result: %d %d\n", (*result_set)[i]->key, (*result_set)[i]->value);
+    }
+
+    return result_count;
+}
 
 // find a record by key
 Record *B_plus_tree_find(B_plus_tree *tree, int v) {
-    B_plus_tree_node *C = tree->root;
-
-    while(C->is_leaf == false) {
-        // i is the smallest number such that v <= C->key[i]
-        int i = 0;
-        while(i < C->key_num && v > C->key[i]) {
-            i++;
-        }
-        if (i == C->key_num) {
-            // C = last non-null pointer in C
-            C = C->pointer[C->pointer_num - 1];
-        } else if (v == C->key[i]) {
-            C = C->pointer[i+1];
-        } else {
-            // v < C->key[i]
-            C = C->pointer[i];
-        }
-    }
+    B_plus_tree_node *C = B_plus_tree_find_leaf(tree, v);
 
     int i = 0;
     for(i = 0; i < C->key_num; i++) {

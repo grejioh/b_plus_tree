@@ -92,8 +92,73 @@ void test_random_unique_insert(int times) {
     B_plus_tree_deconstruct(tree);
 }
 
+// test range query
+void test_range_query() {
+    printf("Test range query\n");
+    // test insert to build a B plus tree
+    B_plus_tree *tree = malloc(sizeof(B_plus_tree));
+    tree->root = NULL;
+
+    int times = 1000;
+
+    int a[times];
+    for(int i = 0; i < times; i++ ) {
+        a[i] = i;
+    }
+    
+    // shuffle the array
+    for(int i = 0; i < times; i++) {
+        int j = rand() % times;
+        int temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
+    }
+
+    // insert some records
+    for(int i = 0; i < times; i++) {
+        Record *record = malloc(sizeof(Record));
+        record->key = a[i];
+        record->value = a[i];
+        // printf("====================================\n");
+        // printf("insert key: %d, value: %d\n", record->key, record->value);
+        B_plus_tree_insert(tree, record->key, record);
+        // B_plus_tree_print(tree);
+    }
+
+    // shuffle the array
+    for(int i = 0; i < times; i++) {
+        int j = rand() % times;
+        int temp = a[i];
+        a[i] = a[j];
+        a[j] = temp;
+    }
+
+    // test range query
+    int i = 0;
+    for(i = 1; i < times; i++) {
+        int v1 = a[i-1];
+        int v2 = a[i];
+        Record** result_set;
+        int result_count = B_plus_tree_find_range(tree, v1, v2, &result_set);
+
+        printf("range query: %d, %d\n", v1, v2);
+        if(result_count > 0) {
+            assert(result_count == v2 - v1 + 1);
+            printf("result_set[0] %d\n", result_set[0]->key);
+            assert(result_set[0]->key == v1);
+            // free should be done by the caller
+            free(result_set);
+        }
+
+        printf("result count: %d\n", result_count);
+        printf("\n");
+        printf("\n");
+    }
+    
+}
 int main() {
     test_sequential_insert();
     test_random_unique_insert(1000000);
+    test_range_query();
     return 0;
 }

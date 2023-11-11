@@ -57,6 +57,12 @@ void B_plus_tree_print(B_plus_tree *tree);
 // deconstruct B plus tree
 void B_plus_tree_deconstruct(B_plus_tree *tree);
 
-// 其他函数声明...
+/*
+find several records by key range [lb, ub]
+return number of records found
+result_set is a pointer to an array of Record pointers
+result_set is allocated by this function, you should free it after use
+*/
+int B_plus_tree_find_range(B_plus_tree *tree, int lb, int ub, Record*** result_set);
 
 #endif // B_PLUS_TREE_H
