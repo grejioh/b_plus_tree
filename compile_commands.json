@@ -1,0 +1,30 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Iinclude",
+      "-o",
+      "target/main",
+      "src/main.c"
+    ],
+    "directory": "/Users/grejioh/repos/database/b_plus_tree",
+    "file": "/Users/grejioh/repos/database/b_plus_tree/src/main.c",
+    "output": "/Users/grejioh/repos/database/b_plus_tree/target/main"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Iinclude",
+      "-o",
+      "target/main",
+      "src/B_plus_tree.c"
+    ],
+    "directory": "/Users/grejioh/repos/database/b_plus_tree",
+    "file": "/Users/grejioh/repos/database/b_plus_tree/src/B_plus_tree.c",
+    "output": "/Users/grejioh/repos/database/b_plus_tree/target/main"
+  }
+]
