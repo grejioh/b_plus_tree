@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include "B_plus_tree.h"
 
+void B_plus_tree_free_node(B_plus_tree_node *node);
+void B_plus_tree_free_tree(B_plus_tree *tree);
+void B_plus_tree_free_temp_node(B_plus_tree_node *node);
+
 
 // find a record by key
 Record *B_plus_tree_find(B_plus_tree *tree, int v) {
@@ -56,6 +60,7 @@ B_plus_tree_node *B_plus_tree_node_create_node(int key_capacity, int pointer_cap
 // find_leaf to insert a record
 B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v) {
     B_plus_tree_node *C = tree->root;
+    B_plus_tree_node *P = NULL;
 
     while(C->is_leaf == false) {
         // i is the smallest number such that v <= C->key[i]
@@ -63,6 +68,7 @@ B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v) {
         while(i < C->key_num && v > C->key[i]) {
             i++;
         }
+        P = C;
         if (i == C->key_num) {
             // C = last non-null pointer in C
             C = C->pointer[C->pointer_num - 1];
@@ -72,6 +78,7 @@ B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v) {
             // v < C->key[i]
             C = C->pointer[i];
         }
+        C->parent = P;
     }
     return C;
 }
@@ -104,8 +111,6 @@ void B_plus_tree_insert_in_internal_node(B_plus_tree_node *N, int K, B_plus_tree
     while(i < N->key_num && K > N->key[i]) {
         i++;
     }
-    // ?? i should not be 0
-    assert(i != 0);
 
     // move the key and pointer after i
     int j = N->key_num;
@@ -149,8 +154,6 @@ void B_plus_tree_insert_in_parent(B_plus_tree *tree, B_plus_tree_node *Node,int 
         new_root->key_num++;
         new_root->pointer_num += 2;
 
-        Node->parent = new_root;
-        Node_prime->parent = new_root;
         tree->root = new_root;
 
         return;
@@ -193,8 +196,7 @@ void B_plus_tree_insert_in_parent(B_plus_tree *tree, B_plus_tree_node *Node,int 
         // use copy function [[WARN]]
         B_plus_tree_copy_node(Tamp, Parent_prime, (NUMBER_OF_CHILD+1)/2 + 1, NUMBER_OF_CHILD, (NUMBER_OF_CHILD+2)/2, NUMBER_OF_CHILD+1);
 
-        // set the parent pointer of P_prime
-        Parent_prime->parent = Parent->parent;
+        B_plus_tree_free_temp_node(Tamp);
 
         // insert K_prime, P_prime into the parent of P
         B_plus_tree_insert_in_parent(tree, Parent, K_prime, Parent_prime);
@@ -253,12 +255,20 @@ void B_plus_tree_insert(B_plus_tree *tree, int Key, Record *Ptr_to_data) {
         // Copy the rest key-value pairs of T to L_prime
         B_plus_tree_copy_node(Tamp, Leaf_prime, (NUMBER_OF_CHILD+1)/2, NUMBER_OF_CHILD, (NUMBER_OF_CHILD+1)/2, NUMBER_OF_CHILD);
 
-        // set the parent pointer of L_prime
-        Leaf_prime->parent = Leaf->parent;
+        B_plus_tree_free_temp_node(Tamp);
+
+
 
         B_plus_tree_insert_in_parent(tree, Leaf, Leaf_prime->key[0], Leaf_prime);
 
     }
+}
+// free a Temp node
+void B_plus_tree_free_temp_node(B_plus_tree_node *node) {
+    // free all pointer
+    free(node->key);
+    free(node->pointer);
+    free(node);
 }
 
 // free a B plus tree node
@@ -270,6 +280,7 @@ void B_plus_tree_free_node(B_plus_tree_node *node) {
         }
     }else {
         for(int i = 0; i < node->pointer_num; i++) {
+            // free the record 
             free(node->pointer[i]);
         }
     }
@@ -288,6 +299,7 @@ void B_plus_tree_free_tree(B_plus_tree *tree) {
         B_plus_tree_free_node(node);
         node = next;
     }
+    free(tree);
 }
 
 // print a B plus tree node
@@ -320,6 +332,7 @@ void B_plus_tree_print_node(B_plus_tree_node *node) {
 }
 
 // print a B plus tree 
+// works only for small tree
 void B_plus_tree_print(B_plus_tree *tree) {
     // print all node
     B_plus_tree_node *node = tree->root;
@@ -329,6 +342,7 @@ void B_plus_tree_print(B_plus_tree *tree) {
     stack[stack_top++] = node;
 
     while(stack_top > 0) {
+        assert(stack_top < 100);
         // pop a node from stack
         node = stack[--stack_top]; 
         B_plus_tree_print_node(node);
@@ -343,4 +357,9 @@ void B_plus_tree_print(B_plus_tree *tree) {
             stack[stack_top++] = node->pointer[i];
         }
     }
+}
+
+// deconstruct a B plus tree
+void B_plus_tree_deconstruct(B_plus_tree *tree) {
+    B_plus_tree_free_tree(tree);
 }

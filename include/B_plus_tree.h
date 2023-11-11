@@ -26,7 +26,7 @@ typedef struct B_plus_tree_node {
     // bool value indicate whether this node is a leaf node
     bool is_leaf;
 
-    // parent pointer
+    // parent pointer, lazily update (only update when find)
     struct B_plus_tree_node *parent;
     
 } B_plus_tree_node;
@@ -53,6 +53,9 @@ Record *B_plus_tree_find(B_plus_tree *tree, int v);
 
 // print B plus tree
 void B_plus_tree_print(B_plus_tree *tree);
+
+// deconstruct B plus tree
+void B_plus_tree_deconstruct(B_plus_tree *tree);
 
 // 其他函数声明...
 
