@@ -231,7 +231,6 @@ void B_plus_tree_insert(B_plus_tree *tree, int Key, Record *Ptr_to_data) {
         Tamp->is_leaf = true;
 
         // copy L to T
-        // TODO wrap copy function
 
         B_plus_tree_copy_node(Leaf, Tamp, 0, NUMBER_OF_CHILD-1, 0, NUMBER_OF_CHILD-1);
 
@@ -239,8 +238,8 @@ void B_plus_tree_insert(B_plus_tree *tree, int Key, Record *Ptr_to_data) {
         B_plus_tree_insert_in_leaf(Tamp, Key, Ptr_to_data);
 
         // handle the special ptr (next pointer) of L and L_prime
-        Leaf->pointer[NUMBER_OF_CHILD-1] = Leaf_prime;
         Leaf_prime->pointer[NUMBER_OF_CHILD-1] = Leaf->pointer[NUMBER_OF_CHILD-1];
+        Leaf->pointer[NUMBER_OF_CHILD-1] = Leaf_prime;
 
         // erase the keys and pointers in L, except the next pointer
         Leaf->key_num = 0;
@@ -293,12 +292,7 @@ void B_plus_tree_free_node(B_plus_tree_node *node) {
 // free a B plus tree
 void B_plus_tree_free_tree(B_plus_tree *tree) {
     // free all node
-    B_plus_tree_node *node = tree->root;
-    while(node != NULL) {
-        B_plus_tree_node *next = node->pointer[NUMBER_OF_CHILD-1];
-        B_plus_tree_free_node(node);
-        node = next;
-    }
+    B_plus_tree_free_node(tree->root);
     free(tree);
 }
 
