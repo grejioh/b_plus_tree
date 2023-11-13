@@ -65,4 +65,6 @@ result_set is allocated by this function, you should free it after use
 */
 int B_plus_tree_find_range(B_plus_tree *tree, int lb, int ub, Record*** result_set);
 
+void B_plus_tree_delete(B_plus_tree *tree, int v);
+
 #endif // B_PLUS_TREE_H

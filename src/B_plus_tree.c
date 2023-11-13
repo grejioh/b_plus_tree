@@ -1,12 +1,13 @@
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "B_plus_tree.h"
 
-void B_plus_tree_free_node(B_plus_tree_node *node);
+void B_plus_tree_free_node_recursively(B_plus_tree_node *node);
 void B_plus_tree_free_tree(B_plus_tree *tree);
-void B_plus_tree_free_temp_node(B_plus_tree_node *node);
+void B_plus_tree_free_node_nonrecursively(B_plus_tree_node *node);
 void B_plus_tree_print_node(B_plus_tree_node *node);
 
 void B_plus_tree_insert_in_parent(B_plus_tree *tree, B_plus_tree_node *Node,int Key, B_plus_tree_node *Node_prime);
@@ -16,6 +17,271 @@ B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v);
 B_plus_tree_node *B_plus_tree_node_create_node(int key_capacity, int pointer_capacity);
 void B_plus_tree_copy_node(B_plus_tree_node *src, B_plus_tree_node *dst, int key_start, int key_stop_index, int pointer_start, int pointer_stop_index);
 Record *B_plus_tree_find(B_plus_tree *tree, int v);
+
+bool B_plus_tree_can_merge(B_plus_tree_node *node1, B_plus_tree_node *node2);
+bool B_plus_tree_node_too_few_pointers(B_plus_tree_node *node);
+void B_plus_tree_delete_entry(B_plus_tree *tree, B_plus_tree_node *Node, int Key, void* Pointer);
+void B_plus_tree_delete(B_plus_tree *tree, int v);
+
+// check node can merge
+bool B_plus_tree_can_merge(B_plus_tree_node *node1, B_plus_tree_node *node2) {
+    if(node1->is_leaf != node2->is_leaf) {
+        return false;
+    }
+    if(node1->is_leaf) {
+        return node1->key_num + node2->key_num <= NUMBER_OF_CHILD-1;
+    } else {
+        return node1->key_num + node2->key_num <= NUMBER_OF_CHILD-2;
+    }
+}
+
+// check node has too few pointers
+// For nonleaf nodes, this criterion means less than ⌈n∕2⌉ pointers; 
+// for leaf nodes, it means less than ⌈(n − 1)∕2⌉ values. 
+bool B_plus_tree_node_too_few_pointers(B_plus_tree_node *node) {
+    if(node->is_leaf) {
+        return node->pointer_num < (NUMBER_OF_CHILD)/2;
+    } else {
+        return node->pointer_num < (NUMBER_OF_CHILD+1)/2;
+    }
+}
+
+// delete an entry from node
+void B_plus_tree_delete_entry(B_plus_tree *tree, B_plus_tree_node *Node, int Key, void* Pointer) {
+    // delete K,P from N
+    int i = 0;
+    while(i < Node->key_num && Node->key[i] != Key) {
+        i++;
+    }
+    // assert(i < Node->key_num);
+    // move the key and pointer after i
+    int j = i;
+    while(j < Node->key_num - 1) {
+        Node->key[j] = Node->key[j+1];
+        if(Node->is_leaf) { 
+            Node->pointer[j] = Node->pointer[j+1];
+        } else {
+            assert(j+2<=Node->pointer_num);
+            Node->pointer[j+1] = Node->pointer[j+2];
+        }
+        j++;
+    }
+    Node->key_num--;
+    Node->pointer_num--;
+    if(Node->is_leaf) {
+        free((Record*)Pointer);
+    }else {
+        B_plus_tree_free_node_nonrecursively((B_plus_tree_node*)Pointer);
+    }
+
+    if(Node == tree->root && Node->is_leaf) {
+        return;
+    }
+    if(Node == tree->root && Node->pointer_num == 1) {
+        // the root node is empty, delete it
+        tree->root = Node->pointer[0];
+        B_plus_tree_free_node_nonrecursively(Node);
+        return;
+    }else if(B_plus_tree_node_too_few_pointers(Node)) {
+        // get prev and next sibling node
+        B_plus_tree_node *Parent = Node->parent;
+        int i = 0;
+        while(i < Parent->pointer_num && Parent->pointer[i] != Node) {
+            i++;
+        }
+        int pointer_node_index = i;
+        assert(pointer_node_index < Parent->pointer_num);
+        B_plus_tree_node *Prev = NULL;
+        B_plus_tree_node *Next = NULL;
+        if (pointer_node_index > 0) {
+            Prev = Parent->pointer[pointer_node_index - 1];
+        }
+        if (pointer_node_index < Parent->pointer_num - 1) {
+            Next = Parent->pointer[pointer_node_index + 1];
+        }
+        enum {
+            MERGE_PREV,
+            MERGE_NEXT,
+            REDISTRIBUTE_PREV,
+            REDISTRIBUTE_NEXT,
+        } action;
+
+
+        B_plus_tree_node *Node_prime;
+        int K_prime;
+        // caculate the action
+        if(Prev != NULL && B_plus_tree_can_merge(Prev, Node)) {
+            action = MERGE_PREV;
+            Node_prime = Prev;
+            K_prime = Parent->key[pointer_node_index-1];
+        } else if(Next != NULL && B_plus_tree_can_merge(Node, Next)) {
+            action = MERGE_NEXT;
+            Node_prime = Next;
+            K_prime = Parent->key[pointer_node_index];
+        } else if(Prev != NULL) {
+            action = REDISTRIBUTE_PREV;
+            Node_prime = Prev;
+            K_prime = Parent->key[pointer_node_index-1];
+        } else if(Next != NULL) {
+            action = REDISTRIBUTE_NEXT;
+            Node_prime = Next;
+            K_prime = Parent->key[pointer_node_index];
+        } else {
+            assert(0);
+        }
+
+        // do the action
+        if(action == MERGE_PREV || action == MERGE_NEXT) {
+            if(action == MERGE_NEXT) {
+                // swap node and next
+                B_plus_tree_node *temp = Node;
+                Node = Node_prime;
+                Node_prime = temp;
+            }
+
+            // merge node_prime and node
+            if(Node->is_leaf) {
+                int i = 0;
+                for(i = 0; i < Node->key_num; i++) {
+                    Node_prime->key[Node_prime->key_num++] = Node->key[i];
+                    Node_prime->pointer[Node_prime->pointer_num++] = Node->pointer[i];
+                    assert(Node_prime->pointer_num <= NUMBER_OF_CHILD-1);
+                }
+                Node_prime->pointer[NUMBER_OF_CHILD-1] = Node->pointer[NUMBER_OF_CHILD-1];
+            }else {
+                int i = 0;
+                // append K' to N' and append all pointers and keys in N to N'
+                Node_prime->key[Node_prime->key_num++] = K_prime;
+                for(i = 0; i < Node->key_num; i++) {
+                    Node_prime->key[Node_prime->key_num++] = Node->key[i];
+                    Node_prime->pointer[Node_prime->pointer_num++] = Node->pointer[i];
+                    assert(Node_prime->pointer_num <= NUMBER_OF_CHILD-1);
+                }
+                Node_prime->pointer[Node_prime->pointer_num++] = Node->pointer[Node->pointer_num-1];
+                assert(Node_prime->pointer_num <= NUMBER_OF_CHILD);
+            }
+            B_plus_tree_delete_entry(tree, Parent, K_prime, Node);
+        }else if(action == REDISTRIBUTE_PREV){
+            if(Node->is_leaf) {
+                // let m be such that (N'.Pm, N'.Km) is the last pointer-key pair in N'
+                int m = Node_prime->pointer_num - 1;
+                int N_prime_Key_m = Node_prime->key[m];
+                Record *N_prime_Pointer_m = Node_prime->pointer[m];
+
+                // remove (N'.Pm, N'.Km) from N'
+                Node_prime->pointer_num--;
+                Node_prime->key_num--;
+
+                // insert (N'.Pm, N'.Km) at the first pointer-key pair in N
+                // move the key and pointer after i = 0
+                int j = Node->key_num;
+                while(j > 0) {
+                    Node->key[j] = Node->key[j-1];
+                    Node->pointer[j] = Node->pointer[j-1];
+                    j--;
+                }
+                Node->key[0] = N_prime_Key_m;
+                Node->pointer[0] = N_prime_Pointer_m;
+                Node->pointer_num++;
+                Node->key_num++;
+
+                // replace K' in the parent of N' with N'.Km
+                Parent->key[pointer_node_index-1] = N_prime_Key_m;
+
+            }else { // Node is a nonleaf node
+                // let m be such that N'.Pm is the last pointer in N'
+                int m = Node_prime->pointer_num - 1;
+                int N_prime_Key_m_1 = Node_prime->key[m-1];
+                B_plus_tree_node *N_prime_Pointer_m = Node_prime->pointer[m];
+
+                //remove (N'.Km−1, N'.Pm) from N′
+                Node_prime->pointer_num--;
+                Node_prime->key_num--;
+
+                // insert (N'.Pm, K') as the first pointer and value in N
+                int j = Node->key_num;
+                while(j > 0) {
+                    Node->key[j] = Node->key[j-1];
+                    Node->pointer[j+1] = Node->pointer[j];
+                    j--;
+                }
+                Node->pointer[1] = Node->pointer[0];
+
+                Node->key[0] = K_prime;
+                Node->pointer[0] = N_prime_Pointer_m;
+                Node->pointer_num++;
+                Node->key_num++;
+
+                // replace K' in the parent of N' with N'.Km-1
+                Parent->key[pointer_node_index-1] = N_prime_Key_m_1;
+            }
+
+        } else if(action == REDISTRIBUTE_NEXT) {
+            if(Node->is_leaf) {
+                // let m be such that (N'.Pm, N'.Km) is the first pointer-key pair in N'
+                int m = 0;
+                int N_prime_Key_m = Node_prime->key[m];
+                Record *N_prime_Pointer_m = Node_prime->pointer[m];
+                // remove (N'.Pm, N'.Km) from N'
+                int j = 0;
+                while(j < Node_prime->key_num - 1) {
+                    Node_prime->key[j] = Node_prime->key[j+1];
+                    Node_prime->pointer[j] = Node_prime->pointer[j+1];
+                    j++;
+                }
+                Node_prime->pointer_num--;
+                Node_prime->key_num--;
+                // insert (N'.Pm, N'.Km) at the last pointer-key pair in N
+                Node->key[Node->key_num++] = N_prime_Key_m;
+                Node->pointer[Node->pointer_num++] = N_prime_Pointer_m;
+
+                // replace K' in the parent of N' with N'.K0
+                Parent->key[pointer_node_index] = Node_prime->key[0];
+            } else { // Node is nonleaf node
+                // let m be such that N'.Pm is the first pointer in N'
+                int m = 0;
+                int N_prime_Key_m = Node_prime->key[m];
+                B_plus_tree_node *N_prime_Pointer_m = Node_prime->pointer[m];
+                // remove (N'.Pm, N'.Km) from N'
+                int j = 0;
+                while(j < Node_prime->key_num - 1) {
+                    Node_prime->key[j] = Node_prime->key[j+1];
+                    Node_prime->pointer[j] = Node_prime->pointer[j+1];
+                    j++;
+                }
+                Node_prime->pointer[j] = Node_prime->pointer[j+1];
+                Node_prime->pointer_num--;
+                Node_prime->key_num--;
+
+                // insert (K', N'.Km) as the last pointer and value in N
+                Node->key[Node->key_num++] = K_prime;
+                Node->pointer[Node->pointer_num++] = N_prime_Pointer_m;
+
+                // replace K' in the parent of N' with N'.Km
+                Parent->key[pointer_node_index] = N_prime_Key_m;
+            }
+        }
+    }
+}
+
+// delete a record
+void B_plus_tree_delete(B_plus_tree *tree, int v) {
+    // find the leaf node to delete
+    B_plus_tree_node *leaf = B_plus_tree_find_leaf(tree, v);
+    int i = 0;
+    for(i = 0; i < leaf->key_num; i++) {
+        if (leaf->key[i] == v) {
+            break;
+        }
+    }
+
+    if(i == leaf->key_num) {
+        // the record is not found
+        return;
+    }
+    B_plus_tree_delete_entry(tree, leaf, v, leaf->pointer[i]);
+}
+
 
 /*
 find several records by key range [lb, ub]
@@ -236,7 +502,7 @@ void B_plus_tree_insert_in_parent(B_plus_tree *tree, B_plus_tree_node *Node,int 
         // use copy function [[WARN]]
         B_plus_tree_copy_node(Tamp, Parent_prime, (NUMBER_OF_CHILD+1)/2 + 1, NUMBER_OF_CHILD, (NUMBER_OF_CHILD+2)/2, NUMBER_OF_CHILD+1);
 
-        B_plus_tree_free_temp_node(Tamp);
+        B_plus_tree_free_node_nonrecursively(Tamp);
 
         // insert K_prime, P_prime into the parent of P
         B_plus_tree_insert_in_parent(tree, Parent, K_prime, Parent_prime);
@@ -294,7 +560,7 @@ void B_plus_tree_insert(B_plus_tree *tree, int Key, Record *Ptr_to_data) {
         // Copy the rest key-value pairs of T to L_prime
         B_plus_tree_copy_node(Tamp, Leaf_prime, (NUMBER_OF_CHILD+1)/2, NUMBER_OF_CHILD, (NUMBER_OF_CHILD+1)/2, NUMBER_OF_CHILD);
 
-        B_plus_tree_free_temp_node(Tamp);
+        B_plus_tree_free_node_nonrecursively(Tamp);
 
 
 
@@ -303,7 +569,7 @@ void B_plus_tree_insert(B_plus_tree *tree, int Key, Record *Ptr_to_data) {
     }
 }
 // free a Temp node
-void B_plus_tree_free_temp_node(B_plus_tree_node *node) {
+void B_plus_tree_free_node_nonrecursively(B_plus_tree_node *node) {
     // free all pointer
     free(node->key);
     free(node->pointer);
@@ -311,11 +577,11 @@ void B_plus_tree_free_temp_node(B_plus_tree_node *node) {
 }
 
 // free a B plus tree node
-void B_plus_tree_free_node(B_plus_tree_node *node) {
+void B_plus_tree_free_node_recursively(B_plus_tree_node *node) {
     // free all pointer
     if(node->is_leaf == false) {
         for(int i = 0; i < node->pointer_num; i++) {
-            B_plus_tree_free_node(node->pointer[i]);
+            B_plus_tree_free_node_recursively(node->pointer[i]);
         }
     }else {
         for(int i = 0; i < node->pointer_num; i++) {
@@ -332,7 +598,7 @@ void B_plus_tree_free_node(B_plus_tree_node *node) {
 // free a B plus tree
 void B_plus_tree_free_tree(B_plus_tree *tree) {
     // free all node
-    B_plus_tree_free_node(tree->root);
+    B_plus_tree_free_node_recursively(tree->root);
     free(tree);
 }
 
@@ -368,6 +634,8 @@ void B_plus_tree_print_node(B_plus_tree_node *node) {
 // print a B plus tree 
 // works only for small tree
 void B_plus_tree_print(B_plus_tree *tree) {
+    // print a line
+    printf("====================================\n");
     // print all node
     B_plus_tree_node *node = tree->root;
     // make a stack of nodes
