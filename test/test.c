@@ -35,7 +35,7 @@ void test_sequential_insert(void) {
     }
 
     // free the tree and all node
-    B_plus_tree_deconstruct(tree);
+    B_plus_tree_destroy(tree);
 }
 
 // test random insert
@@ -89,7 +89,7 @@ void test_random_unique_insert(int times) {
     }
 
     // free the tree and all node
-    B_plus_tree_deconstruct(tree);
+    B_plus_tree_destroy(tree);
 }
 
 // test range query
@@ -228,23 +228,23 @@ void test_delete(int times) {
     free(a);
 
     // free the tree and all node
-    B_plus_tree_deconstruct(tree);
+    B_plus_tree_destroy(tree);
 }
 
 
-int main(void) {
-    // test_sequential_insert();
-    // test_random_unique_insert(1000000);
-    // test_range_query();
-    // record run time
-    clock_t start, end;
-    double cpu_time_used;
-    start = clock();
-    test_delete(100000000);
-    end = clock();
-    // print the time in seconds
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("time used: %f\n", cpu_time_used);
+// int main(void) {
+//     // test_sequential_insert();
+//     // test_random_unique_insert(1000000);
+//     // test_range_query();
+//     // record run time
+//     clock_t start, end;
+//     double cpu_time_used;
+//     start = clock();
+//     test_delete(100000000);
+//     end = clock();
+//     // print the time in seconds
+//     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+//     printf("time used: %f\n", cpu_time_used);
 
-    return 0;
-}
+//     return 0;
+// }

@@ -4,6 +4,7 @@
 // macro to config B plus tree
 // an internal node can have at most N children
 #include <stdbool.h>
+#include <pthread.h>
 #define NUMBER_OF_CHILD 4 
 
 
@@ -35,6 +36,7 @@ typedef struct B_plus_tree_node {
 typedef struct B_plus_tree {
     // root node
     B_plus_tree_node *root;
+    pthread_rwlock_t lock;
 } B_plus_tree;
 
 // data structure represent a database entry
@@ -54,8 +56,10 @@ Record *B_plus_tree_find(B_plus_tree *tree, int v);
 // print B plus tree
 void B_plus_tree_print(B_plus_tree *tree);
 
-// deconstruct B plus tree
-void B_plus_tree_deconstruct(B_plus_tree *tree);
+// destroy B plus tree
+void B_plus_tree_destroy(B_plus_tree *tree);
+
+B_plus_tree *B_plus_tree_create(void);
 
 /*
 find several records by key range [lb, ub]

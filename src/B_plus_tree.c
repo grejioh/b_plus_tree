@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -336,6 +337,10 @@ int B_plus_tree_find_range(B_plus_tree *tree, int lb, int ub, Record*** result_s
 Record *B_plus_tree_find(B_plus_tree *tree, int v) {
     B_plus_tree_node *C = B_plus_tree_find_leaf(tree, v);
 
+    if (C == NULL) {
+        return NULL;
+    }
+
     int i = 0;
     for(i = 0; i < C->key_num; i++) {
         if (C->key[i] == v) {
@@ -367,6 +372,10 @@ B_plus_tree_node *B_plus_tree_node_create_node(int key_capacity, int pointer_cap
 B_plus_tree_node* B_plus_tree_find_leaf(B_plus_tree *tree, int v) {
     B_plus_tree_node *C = tree->root;
     B_plus_tree_node *P = NULL;
+
+    if(C == NULL) {
+        return NULL;
+    }
 
     while(C->is_leaf == false) {
         // i is the smallest number such that v <= C->key[i]
@@ -662,6 +671,14 @@ void B_plus_tree_print(B_plus_tree *tree) {
 }
 
 // deconstruct a B plus tree
-void B_plus_tree_deconstruct(B_plus_tree *tree) {
+void B_plus_tree_destroy(B_plus_tree *tree) {
     B_plus_tree_free_tree(tree);
+    pthread_rwlock_destroy(&tree->lock);
+}
+
+B_plus_tree* B_plus_tree_create(void) {
+    B_plus_tree *tree = malloc(sizeof(B_plus_tree));
+    tree->root = NULL;
+    pthread_rwlock_init(&tree->lock, NULL);
+    return tree;
 }
