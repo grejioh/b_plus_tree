@@ -1,4 +1,5 @@
 #include "B_plus_tree.h"
+#include "lock_manager.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 Database *db_create(void) {
     Database *db = malloc(sizeof(Database));
     db->tree = B_plus_tree_create();
+    db->lock_manager = lock_manager_create();
     return db;
 }
 

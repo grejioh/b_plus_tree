@@ -33,6 +33,9 @@ int main(void) {
         printf("> ");
         fgets(buffer, sizeof(buffer), stdin);
 
+        // Remove the newline character
+        buffer[strlen(buffer) - 1] = '\0';
+
         // Send the command to the server
         if (send(client_socket, buffer, strlen(buffer), 0) == -1) {
             perror("send");

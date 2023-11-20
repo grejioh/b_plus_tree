@@ -1,4 +1,6 @@
 #include "execution.h"
+#include "transaction.h"
+#include <malloc/_malloc.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -63,6 +65,8 @@ int accept_client_connection(int server_socket) {
 void *handle_client_request(void *arg) {
     int client_socket = *(int *)arg;
     char buffer[1024];
+    bool in_transaction = false;
+    transaction_t* transaction;
     while(1) {
         int len = recv(client_socket, buffer, sizeof(buffer), 0);
         if(len < 0) {
@@ -73,6 +77,47 @@ void *handle_client_request(void *arg) {
         printf("Received: %s\n", buffer);
 
         char* response = "Hello from server";
+
+        if(strcmp(buffer, "begin;") == 0) {
+            in_transaction = true;
+            transaction = transaction_create(0);
+
+            response = "now in transaction";
+            if (send(client_socket, response, strlen(response), 0) < 0) {
+                perror("send");
+                exit(1);
+            }
+
+            continue;
+        }
+
+        // check if in a transaction
+        if(in_transaction) {
+            int result = transaction_handle(db, transaction, buffer);
+            if(result == 0) {
+
+                response = "committed";
+                in_transaction = false;
+                free(transaction);
+
+            } else if(result == -1){
+
+                response = "aborted";
+                in_transaction = false;
+                free(transaction);
+
+            }else {
+                response = "in_transaction";
+            }
+
+            if (send(client_socket, response, strlen(response), 0) < 0) {
+                perror("send");
+                exit(1);
+            }
+            continue;
+        }
+
+
         // Parse the request
         char* command = strtok(buffer, "(");
         if (strcmp(command, "insert") == 0) {
@@ -115,8 +160,8 @@ void handle_exit_signal(int signal) {
 void server(void) {
     db = db_create();
 
-    signal(SIGINT, handle_exit_signal);
-    signal(SIGTERM, handle_exit_signal);
+    // signal(SIGINT, handle_exit_signal);
+    // signal(SIGTERM, handle_exit_signal);
 
     int server_socket = create_server_socket();
     while (1) {
