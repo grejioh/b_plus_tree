@@ -1,6 +1,5 @@
 #include "execution.h"
 #include "transaction.h"
-#include <malloc/_malloc.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,17 +17,17 @@ int create_server_socket(void) {
     int server_socket;
     struct sockaddr_in server_address;
 
-    // 创建套接字选项
+    // 创建socket选项
     if((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         exit(1);
     }
 
-    // 设置套接字选项
+    // 设置socket选项
     int opt = 1;
     setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    // 绑定套接字到 IP 地址和端口号
+    // 绑定socket到 IP 地址和端口号
     memset(&server_address, 0, sizeof(server_address));
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(SERVER_PORT);
@@ -38,7 +37,7 @@ int create_server_socket(void) {
         exit(1);
     }
 
-    // 监听套接字
+    // 监听socket
     if(listen(server_socket, 5) < 0) {
         perror("listen");
         exit(1);
@@ -64,21 +63,23 @@ int accept_client_connection(int server_socket) {
 
 void *handle_client_request(void *arg) {
     int client_socket = *(int *)arg;
-    char buffer[1024];
+    char recv_buffer[1024];
+    char response_buffer[1024];
     bool in_transaction = false;
     transaction_t* transaction;
     while(1) {
-        int len = recv(client_socket, buffer, sizeof(buffer), 0);
+        int len = recv(client_socket, recv_buffer, sizeof(recv_buffer), 0);
         if(len < 0) {
             perror("recv");
             exit(1);
         }
-        buffer[len] = '\0';
-        printf("Received: %s\n", buffer);
+        recv_buffer[len] = '\0';
+        printf("Received: %s\n", recv_buffer);
 
-        char* response = "Hello from server";
+        response_buffer[0] = '\0';
+        char *response = response_buffer;
 
-        if(strcmp(buffer, "begin;") == 0) {
+        if(strcmp(recv_buffer, "begin;") == 0) {
             in_transaction = true;
             transaction = transaction_create(0);
 
@@ -93,7 +94,7 @@ void *handle_client_request(void *arg) {
 
         // check if in a transaction
         if(in_transaction) {
-            int result = transaction_handle(db, transaction, buffer);
+            int result = transaction_handle(db, transaction, recv_buffer, response_buffer);
             if(result == 0) {
 
                 response = "committed";
@@ -108,34 +109,40 @@ void *handle_client_request(void *arg) {
 
             }else {
                 response = "in_transaction";
+                if (send(client_socket, response_buffer, strlen(response_buffer), 0) < 0) {
+                    perror("send");
+                    exit(1);
+                }
             }
-
             if (send(client_socket, response, strlen(response), 0) < 0) {
                 perror("send");
                 exit(1);
             }
+
             continue;
         }
 
 
         // Parse the request
-        char* command = strtok(buffer, "(");
+        char* command = strtok(recv_buffer, "(");
         if (strcmp(command, "insert") == 0) {
             int key = atoi(strtok(NULL, ","));
             int value = atoi(strtok(NULL, ")"));
             db_insert(db, key, value);
+            response = "inserted";
         } else if (strcmp(command, "find") == 0) {
             int key = atoi(strtok(NULL, ")"));
-            db_find(db, key);
+            db_find(db, key, response_buffer);
         } else if (strcmp(command, "delete") == 0) {
             int key = atoi(strtok(NULL, ")"));
             db_delete(db, key);
+            response = "deleted";
         } else if (strcmp(command, "findrange") == 0) {
             int lb = atoi(strtok(NULL, ","));
             int ub = atoi(strtok(NULL, ")"));
-            db_find_range(db, lb, ub);
+            db_find_range(db, lb, ub, response_buffer);
         } else {
-            // Unknown command
+            response = "Unknown command";
         }
 
 

@@ -17,9 +17,9 @@ void db_destroy(Database *db);
 
 void db_insert(Database *db, int key, int value);
 
-void db_find(Database *db, int key);
+void db_find(Database *db, int key, char* buffer);
 
-void db_find_range(Database *db, int lb, int ub);
+void db_find_range(Database *db, int lb, int ub, char* buffer);
 
 void db_delete(Database *db, int key);
 

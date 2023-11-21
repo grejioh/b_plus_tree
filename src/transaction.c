@@ -16,7 +16,7 @@ transaction_t *transaction_create(int priority) {
     return transaction;
 }
 
-int transaction_handle(Database *db, transaction_t *transaction, char *buffer) {
+int transaction_handle(Database *db, transaction_t *transaction, char *buffer, char *response) {
     if(strcmp(buffer, "commit;") == 0) {
         // commit transaction
         lock_manager_unlock(db->lock_manager, transaction->id);
@@ -37,7 +37,7 @@ int transaction_handle(Database *db, transaction_t *transaction, char *buffer) {
     } else if (strcmp(command, "find") == 0) {
         int key = atoi(strtok(NULL, ")"));
         lock_manager_lock_exclusive(db->lock_manager, transaction->id, key);
-        db_find(db, key);
+        db_find(db, key, response);
     } else if (strcmp(command, "delete") == 0) {
         int key = atoi(strtok(NULL, ")"));
         lock_manager_lock_exclusive(db->lock_manager, transaction->id, key);
@@ -46,7 +46,7 @@ int transaction_handle(Database *db, transaction_t *transaction, char *buffer) {
         int lb = atoi(strtok(NULL, ","));
         int ub = atoi(strtok(NULL, ")"));
         // TODO: need lock
-        db_find_range(db, lb, ub);
+        db_find_range(db, lb, ub, response);
     } else {
         // Unknown command
     }

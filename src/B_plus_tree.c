@@ -304,6 +304,10 @@ int B_plus_tree_find_range(B_plus_tree *tree, int lb, int ub, Record*** result_s
 
     B_plus_tree_node *C = B_plus_tree_find_leaf(tree, lb);
 
+    if(C == NULL) {
+        return 0;
+    }
+
     int i = 0;
     for (i = 0; i < C->key_num && C->key[i] < lb; i++) {
         // do nothing

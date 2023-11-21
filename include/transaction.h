@@ -11,7 +11,7 @@ typedef struct transaction_c {
 
 transaction_t *transaction_create(int priority);
 
-int transaction_handle(Database *db, transaction_t *transaction, char *buffer);
+int transaction_handle(Database *db, transaction_t *transaction, char *buffer, char *response);
 
 
 #endif

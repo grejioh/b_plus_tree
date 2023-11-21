@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "execution.h"
 
 // create a b plus tree database
@@ -40,7 +41,7 @@ void db_insert(Database *db, int key, int value) {
 }
 
 // find
-void db_find(Database *db, int key) {
+void db_find(Database *db, int key, char *buffer) {
     pthread_rwlock_rdlock(&db->tree->lock);
     Record *record = B_plus_tree_find(db->tree, key);
     if(record == NULL) {
@@ -48,16 +49,24 @@ void db_find(Database *db, int key) {
         return;
     }
     printf("key: %d, value: %d\n", record->key, record->value);
+    sprintf(buffer, "key: %d, value: %d\n", record->key, record->value);
+
     pthread_rwlock_unlock(&db->tree->lock);
 }
 
 // find range
-void db_find_range(Database *db, int lb, int ub) {
+void db_find_range(Database *db, int lb, int ub, char *buffer) {
     pthread_rwlock_rdlock(&db->tree->lock);
     Record** result_set;
     int result_number = B_plus_tree_find_range(db->tree, lb, ub, &result_set);
+    if(result_number == 0) {
+        printf("key not found\n");
+        sprintf(buffer, "key not found\n");
+        return;
+    }
     for(int i = 0; i < result_number; i++) {
         printf("key: %d, value: %d\n", result_set[i]->key, result_set[i]->value);
+        sprintf(buffer+strlen(buffer), "key: %d, value: %d\n", result_set[i]->key, result_set[i]->value);
     }
     pthread_rwlock_unlock(&db->tree->lock);
     return;
